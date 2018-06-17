@@ -1,0 +1,34 @@
+version: 2
+jobs: 
+  build:
+    working_directory: ~/code
+    docker:
+      - image: circleci/android:api-28-alpha
+    environment:
+      JVM_OPTS: -Xmx3200m
+      ANDROID_NDK: /opt/android/android-ndk-r17b
+      ANDROID_NDK_HOME: /opt/android/android-ndk-r17b
+    steps:
+      - checkout
+      - restore_cache:
+          key: jar-{{ checksum "build.gradle" }}
+      - run:
+         name: Prepare #if permission for Gradlew Dependencies fail, use this. 
+         command: sudo chmod +x ./gradlew && sudo apt update && sudo apt install -y file && git submodule update --init
+      - run:
+          name: Download Dependencies  # seems latest api-28-node8-alpha includes android-ndk
+          command: sdkmanager --update && ./gradlew androidDependencies
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: jar-{{ checksum "build.gradle" }}      
+      - run:
+          name: Debug build
+          command: python3 build.py -v all && mkdir debug && mv out/* debug/
+      - run:
+          name: Release build
+          command: python3 build.py -v --release all && mkdir release && mv out/* release/
+      - store_artifacts:
+          path: debug/
+      - store_artifacts:
+          path: release/
