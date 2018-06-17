@@ -1,0 +1,32 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/code
+    docker:
+      - image: circleci/android:api-28-ndk-r17b
+    environment:
+      JVM_OPTS: -Xmx3200m
+    steps:
+      - checkout
+      - restore_cache:
+          key: jar-{{ checksum "build.gradle" }}
+      - run:
+         name: Debian9 install Python3.7 and file for build.py
+         command: echo "deb http://ftp.fr.debian.org/debian testing main" | sudo tee --append /etc/apt/sources.list && sudo apt update && sudo apt install -y file python3.7
+      - run:
+          name: Download Dependencies
+          command: git submodule update --init && sudo chmod +x ./gradlew && sdkmanager --update && ./gradlew androidDependencies
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: jar-{{ checksum "build.gradle" }}
+      - run:
+          name: Debug build
+          command: python3.7 build.py -v all && mkdir debug && mv out/* debug/
+      - run:
+          name: Release build
+          command: python3.7 build.py -v --release all && mkdir release && mv out/* release/
+      - store_artifacts:
+          path: debug/
+      - store_artifacts:
+          path: release/
