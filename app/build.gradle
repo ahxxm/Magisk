@@ -66,6 +66,7 @@ dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     fullImplementation project(':utils')
     implementation "com.android.support:support-core-utils:${rootProject.ext.supportLibVersion}"
+    implementation 'com.google.android.gms:play-services-safetynet:15.0.1'
     fullImplementation "com.android.support:preference-v7:${rootProject.ext.supportLibVersion}"
     fullImplementation "com.android.support:recyclerview-v7:${rootProject.ext.supportLibVersion}"
     fullImplementation "com.android.support:cardview-v7:${rootProject.ext.supportLibVersion}"

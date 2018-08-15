@@ -22,9 +22,10 @@ android {
 }
 
 dependencies {
+    implementation 'com.google.android.gms:play-services-base:15.0.1'
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     /* The oldest version */
-    implementation('com.google.android.gms:play-services-safetynet:7.0.0') {
+    implementation('com.google.android.gms:play-services-safetynet:15.0.1') {
         exclude module: 'support-v4'
     }
 }

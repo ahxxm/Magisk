@@ -1,15 +1,18 @@
 package com.topjohnwu.snet;
 
 import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.util.Base64;
+import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.safetynet.SafetyNet;
-import com.google.android.gms.safetynet.SafetyNetApi;
+import com.google.android.gms.safetynet.SafetyNetApi.AttestationResponse;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -19,7 +22,7 @@ import java.lang.reflect.Method;
 import java.security.SecureRandom;
 
 public class SafetyNetHelper implements InvocationHandler, GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener, ResultCallback<SafetyNetApi.AttestationResult> {
+        GoogleApiClient.OnConnectionFailedListener{
 
     public static final int CAUSE_SERVICE_DISCONNECTED = 0x01;
     public static final int CAUSE_NETWORK_LOST = 0x02;
@@ -31,7 +34,6 @@ public class SafetyNetHelper implements InvocationHandler, GoogleApiClient.Conne
 
     public static final int SNET_EXT_VER = 10;
 
-    private GoogleApiClient mGoogleApiClient;
     private Activity mActivity;
     private Object callback;
 
@@ -48,7 +50,7 @@ public class SafetyNetHelper implements InvocationHandler, GoogleApiClient.Conne
     /* Override ISafetyNetHelper.attest */
     private void attest() {
         // Connect Google Service
-        mGoogleApiClient = new GoogleApiClient.Builder(mActivity)
+        GoogleApiClient mGoogleApiClient = new GoogleApiClient.Builder(mActivity)
                 .addApi(SafetyNet.API)
                 .addOnConnectionFailedListener(this)
                 .addConnectionCallbacks(this)
@@ -80,40 +82,45 @@ public class SafetyNetHelper implements InvocationHandler, GoogleApiClient.Conne
 
     @Override
     public void onConnectionFailed(ConnectionResult result) {
-        if (GooglePlayServicesUtil.isUserRecoverableError(result.getErrorCode()))
-            ModdedGPSUtil.getErrorDialog(result.getErrorCode(), mActivity, 0).show();
         invokeCallback(CONNECTION_FAIL);
     }
 
     @Override
     public void onConnected(Bundle bundle) {
+        // not used but to keep compile work, copy once
+        
         // Create nonce
         byte[] nonce = new byte[24];
         new SecureRandom().nextBytes(nonce);
 
         // Call SafetyNet
-        SafetyNet.SafetyNetApi.attest(mGoogleApiClient, nonce).setResultCallback(this);
+        Context c = mActivity.getApplicationContext();
+        SafetyNet.getClient(c).attest(nonce, "AIzaSyBCxiTQobFqW1EyYA5TiqLYN6hci_xSQVU")
+                .addOnSuccessListener(mActivity,
+                        new OnSuccessListener<AttestationResponse>() {
+                            @Override
+                            public void onSuccess(AttestationResponse response) {
+                                int code = 0;
+                                try {
+                                    String jsonStr = new String(Base64.decode(
+                                            response.getJwsResult().split("\\.")[1], Base64.DEFAULT));
+                                    JSONObject json = new JSONObject(jsonStr);
+                                    code |= json.getBoolean("ctsProfileMatch") ? CTS_PASS : 0;
+                                    code |= json.getBoolean("basicIntegrity") ? BASIC_PASS : 0;
+                                } catch (JSONException e) {
+                                    code = RESPONSE_ERR;
+                                }
+                                invokeCallback(code);
+                            }
+                        })
+                .addOnFailureListener(mActivity, new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        // An error occurred while communicating with the service.
+                        Log.d("MagiskSafetynet", "Error: " + e.getMessage());
+                        invokeCallback(RESPONSE_ERR);
+                    }
+                });
     }
 
-    @Override
-    public void onResult(SafetyNetApi.AttestationResult result) {
-        int code = 0;
-        try {
-            if (!result.getStatus().isSuccess())
-                throw new JSONException("");
-            String jsonStr = new String(Base64.decode(
-                    result.getJwsResult().split("\\.")[1], Base64.DEFAULT));
-            JSONObject json = new JSONObject(jsonStr);
-            code |= json.getBoolean("ctsProfileMatch") ? CTS_PASS : 0;
-            code |= json.getBoolean("basicIntegrity") ? BASIC_PASS : 0;
-        } catch (JSONException e) {
-            code = RESPONSE_ERR;
-        }
-
-        // Disconnect
-        mGoogleApiClient.disconnect();
-
-        // Return results
-        invokeCallback(code);
-    }
 }

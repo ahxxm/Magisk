@@ -98,15 +98,6 @@ public class MagiskFragment extends BaseFragment
                     .setCancelable(true)
                     .setPositiveButton(R.string.ok, null)
                     .show();
-        } else if (!CheckSafetyNet.dexPath.exists()) {
-            // Show dialog
-            new CustomAlertDialog(requireActivity())
-                    .setTitle(R.string.proprietary_title)
-                    .setMessage(R.string.proprietary_notice)
-                    .setCancelable(true)
-                    .setPositiveButton(R.string.yes, (d, i) -> task.run())
-                    .setNegativeButton(R.string.no_thanks, null)
-                    .show();
         } else {
             task.run();
         }
