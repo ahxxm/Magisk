@@ -19,15 +19,15 @@ jobs:
          command: echo "deb http://ftp.fr.debian.org/debian testing main" | sudo tee --append /etc/apt/sources.list && sudo apt update && sudo apt install --no-install-recommends -y file python3.7
       - run:
          name: Install FrankeNDK master
-         command: if [ ! -f /opt/android/FrankeNDK-r3/ndk-build ]; then sudo mkdir -p ${ANDROID_NDK_HOME} && cd ${ANDROID_NDK_HOME} && sudo curl --silent --show-error --location --fail --retry 3 https://github.com/topjohnwu/FrankeNDK/archive/master.zip -o franke.zip && sudo unzip franke.zip && sudo rm franke.zip && sudo mv FrankeNDK-master/* ${ANDROID_NDK_HOME} && sudo chown -R circleci:circleci ${ANDROID_NDK_HOME}; fi
+         command: if [ ! -f /opt/android/FrankeNDK/ndk-build ]; then sudo mkdir -p ${ANDROID_NDK_HOME} && cd ${ANDROID_NDK_HOME} && sudo curl --silent --show-error --location --fail --retry 3 https://github.com/topjohnwu/FrankeNDK/archive/r4.tar.gz -o franke.tar.gz && sudo tar xf franke.tar.gz && sudo rm franke.tar.gz && sudo mv r4/ ${ANDROID_NDK_HOME} && sudo chown -R circleci:circleci ${ANDROID_NDK_HOME}; fi
       - run:
           name: Download Dependencies
           command: git submodule update --init && sudo chmod +x ./gradlew && sdkmanager --update && ./gradlew androidDependencies
       - save_cache:
           paths:
             - ~/.gradle
-            - /opt/android/FrankeNDK-r3
-          key: franker3-{{ checksum "build.gradle" }}
+            - /opt/android/FrankeNDK
+          key: franke-{{ checksum "build.gradle" }}
       - run:
           name: Debug build
           command: python3.7 build.py -v all && mkdir debug && mv out/* debug/
